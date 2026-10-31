@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hashbinkit"
-version = "0.0.1"
+version = "0.0.2"
 description = "Hashing utility for binary function similarity analysis."
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = ["r2bagpipe"]
 classifiers = [
   "Programming Language :: Python :: 3",
   "Operating System :: OS Independent",
