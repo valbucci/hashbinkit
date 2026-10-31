@@ -30,22 +30,23 @@ Below is the intended functionality:
   **presence** (each different feature is hashed once).
   - [ ] 1.1. Scalar artefacts
     - [ ] 1.1.1. N. Instructions
-    - [ ] 1.1.2. N. Variables
+    - [ ] 1.1.2. Stackframe size
+    - [ ] 1.1.3. N. Variables
       - [ ] arguments
       - [ ] locals
       - [ ] locals + arguments
-    - [ ] 1.1.3. CFG data
+    - [ ] 1.1.4. CFG data
       - [ ] N. CFG Blocks
       - [ ] N. CFG Edges
       - [ ] cyclomatic complexity
-    - [ ] 1.1.4. Function call-graph
+    - [ ] 1.1.5. Function call-graph
       - [ ] indegree
       - [ ] outdegree
       - [ ] outputs indegree  (oi)
       - [ ] inputs indegree   (ii)
       - [ ] outputs outdegree (oo)
       - [ ] inputs outdegree  (io)
-  - [ ] 1.2. Iterable artefacts (frequency / presence)
+  - [ ] 1.2. Sequence artefacts (frequency / presence)
     - [ ] 1.2.1. Assembly immediates
       - [ ] all
       - [ ] no references
