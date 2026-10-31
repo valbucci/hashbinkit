@@ -18,15 +18,15 @@ venv:
 install: venv
 	# Install dependencies
 	.venv/bin/pip install --upgrade pip
-	.venv/bin/pip install -r requirements.txt
+	.venv/bin/pip install -r requirements.txt || true
 
 .PHONY: install-dev
-install-dev: install
+install-dev: venv
 	# Install dev dependencies 
 	.venv/bin/pip install pip-tools pytest build bump twine
 
 .PHONY: compile
-compile:
+compile: install-dev
 	# Compile requirements from pyproject.toml
 	.venv/bin/python -m piptools compile --upgrade --strip-extras
 
@@ -51,8 +51,9 @@ bump bump-patch bump-minor bump-major:
 
 
 .PHONY: build
+build: DIST_BUILDS = $(shell find dist -type f -name "${PROJ_NAME}-${PROJ_VERSION}*")
 build:
-ifeq ($(shell find dist -type f -name "${PROJ_NAME}-${PROJ_VERSION}*"),)
+ifeq ($(DIST_BUILDS),)
 	.venv/bin/python -m build
 	@echo "Built ${PROJ_NAME} version ${PROJ_VERSION}..."
 else
