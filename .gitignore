@@ -4,3 +4,4 @@ __pycache__/
 dist/
 *.egg-info/
 _[0-9a-z]*.py
+scratch.py
