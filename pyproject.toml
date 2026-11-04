@@ -8,7 +8,7 @@ version = "0.0.2"
 description = "Hashing utility for binary function similarity analysis."
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["r2bagpipe"]
+dependencies = ["r2bagpipe", "numpy", "numba"]
 classifiers = [
   "Programming Language :: Python :: 3",
   "Operating System :: OS Independent",
