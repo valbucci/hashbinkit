@@ -271,18 +271,23 @@ class Graph:
                     k, path[-1], path[1:], seen_paths
                 )
 
-    def get_machoke_words(self, labels: NodeLabelMap) -> Iterator[str]:
+    def get_machoke_words(
+        self, labels: NodeLabelMap | None = None
+    ) -> Iterator[str]:
         """Encode graph with Machoke algorithm.
 
+        Iterates Machoke words for each graph node (e.g. "1c:2,3;").
         Follows order of nodes provided at setup time.
 
         Args:
-            labels: dictionary with str-encoded values appended
-                to the machoke word -- e.g. The original algorithm adds
-                a 'c' suffix for every CFG basic block with an external
-                function call.
+            labels (Optional): dictionary with str-encoded values
+                suffixed to the machoke word -- The original algorithm
+                adds a 'c' suffix for CFG basic blocks with external
+                function calls.
 
         """
+        if labels is None:
+            labels = {}
         for node_index in range(self.size):
             node_key = self.index[node_index]
             node_label = labels.get(node_key, "")
@@ -292,3 +297,7 @@ class Graph:
             word_right = ",".join(map(str, output_indexes)) + ";"
 
             yield word_left + word_right
+
+    def get_machoke_line(self, labels: NodeLabelMap | None = None) -> str:
+        """Encode graph to string with Machoke algorithm."""
+        return "".join(self.get_machoke_words(labels))
