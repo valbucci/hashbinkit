@@ -116,6 +116,16 @@ def search_canonical_label(matrix) -> tuple[int, np.ndarray]:
 
 
 class Graph:
+    __slots__ = (
+        "_indegree",
+        "_inputs_cache",
+        "_outdegree",
+        "_outputs_cache",
+        "adj",
+        "index",
+        "index_map",
+    )
+
     def __init__(
         self,
         nodes: Iterable[NodeKey] = [],
@@ -130,20 +140,20 @@ class Graph:
         """
         self.setup_nodes(nodes)
         try:
-            self.setup_adjacency(edges)
+            self.setup_edges(edges)
         except RuntimeError:
             # Just an empty graph
             pass
 
     def setup_nodes(self, nodes: Iterable[NodeKey]) -> None:
         """Set the node index for internal use."""
-        self.index = list(nodes)
+        self.index = tuple(nodes)
         self.index_map: dict[NodeKey, NodeIndex] = {
             node_key: node_index
             for node_index, node_key in enumerate(self.index)
         }
 
-    def setup_adjacency(self, edges: Iterable[NodeEdge]) -> None:
+    def setup_edges(self, edges: Iterable[NodeEdge]) -> None:
         """Set adjacency matrix based on provided edges.
 
         Overwrites adjacency matrix with the provided edges.
@@ -164,6 +174,19 @@ class Graph:
         self._outdegree = np.count_nonzero(self.adj, axis=1)
         self._inputs_cache = {}
         self._outputs_cache = {}
+
+    def setup_outputs(self, node_outputs: Iterable[NodeOutputs]) -> None:
+        """Set adjacency matrix based on provided node outputs.
+
+        Like `setup_edges` but with grouped outputs for each node.
+        """
+
+        def iterate_edges() -> Iterator[NodeEdge]:
+            for node, outputs in node_outputs:
+                for out in outputs:
+                    yield node, out
+
+        return self.setup_edges(iterate_edges())
 
     @property
     def size(self) -> int:

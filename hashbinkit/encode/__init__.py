@@ -4,6 +4,7 @@
 # - Including them here because a separate file seemed overkill
 from collections.abc import Iterable
 
+from .graph import Graph as Graph
 from .graph import NodeEdge as NodeEdge
 from .graph import NodeIndex as NodeIndex
 from .graph import NodeIndexMap as NodeIndexMap
@@ -15,6 +16,7 @@ from .graph import NodeLabelMap as NodeLabelMap
 from .graph import NodeOutputs as NodeOutputs
 from .graph import NodeOutputsMap as NodeOutputsMap
 from .graph import NodePath as NodePath
+from .sequence import Sequence as Sequence
 
 
 def get_bucket(scalar: int, bucket_bounds: Iterable[int]) -> int:

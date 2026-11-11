@@ -5,6 +5,8 @@ from collections.abc import Hashable, Iterable, Iterator
 
 
 class Sequence:
+    __slots__ = "counter", "elements", "size"
+
     def __init__(self, elements: Iterable[Hashable]) -> None:
         """Init a sequence with given elements.
 
@@ -12,6 +14,10 @@ class Sequence:
         the provided order and the frequency count of
         each element will be retained.
         """
+        self.setup_elements(elements)
+
+    def setup_elements(self, elements: Iterable[Hashable]) -> None:
+        """Set sequence elements, cache size and count frequency."""
         self.elements = tuple(elements)
         self.size = len(self.elements)
         self.counter = Counter(self.elements)
