@@ -53,14 +53,21 @@ class SimHashAccumulator:
         # range reversed to work from left to right
         # i.e. 0b1000 is processed as 1, 0, 0, 0
         bit_index = 0
+        bit_offset = 7
+
         for byte_value in feature_hash:
-            for i in range(8):  # 8 bits
-                bit_at_loc = (byte_value >> i) & 1
-                if bit_at_loc == 1:
-                    self.vector[bit_index + i] += weight
+            for _ in range(8):
+                bit = (byte_value >> bit_offset) & 1
+
+                if bit:
+                    self.vector[bit_index] += weight
                 else:
-                    self.vector[bit_index + i] -= weight
-            bit_index += 8
+                    self.vector[bit_index] -= weight
+
+                bit_index += 1
+                bit_offset -= 1
+
+            bit_offset = 7
 
     def collapse(self) -> np.ndarray:
         """Collapse accumulator vector.
@@ -72,18 +79,22 @@ class SimHashAccumulator:
         # using big endian.
         # Better than np.packbits because fixes
         # issues where values are not divisible by 8
+        self.collapsed_bytes[:] = 0
 
-        bits_start = 0
-        bits_end = 8 - (self.size % 8)
-        bits_end_prev = 0
-        for byte_index, _ in enumerate(self.collapsed_bytes):
-            for bit_pos in range(bits_start, bits_end):
-                if self.vector[bit_pos] >= 0:
-                    offset = bit_pos - bits_end_prev
-                    self.collapsed_bytes[byte_index] |= 1 << offset
-            bits_end_prev = bits_end
-            bits_start = bits_end
-            bits_end = bits_start + 8
+        padding = len(self.collapsed_bytes) * 8 - self.size
+
+        byte_index = padding // 8
+        bit_offset = 7 - (padding % 8)
+
+        for bit_index in range(self.size):
+            if self.vector[bit_index] >= 0:
+                self.collapsed_bytes[byte_index] |= 1 << bit_offset
+
+            bit_offset -= 1
+
+            if bit_offset < 0:
+                bit_offset = 7
+                byte_index += 1
 
         return self.collapsed_bytes
 
