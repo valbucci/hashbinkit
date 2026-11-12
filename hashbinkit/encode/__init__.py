@@ -4,6 +4,7 @@
 # - Including them here because a separate file seemed overkill
 from collections.abc import Iterable
 
+from .graph import EmptyGraphError as EmptyGraphError
 from .graph import Graph as Graph
 from .graph import NodeEdge as NodeEdge
 from .graph import NodeIndex as NodeIndex

@@ -115,6 +115,10 @@ def search_canonical_label(matrix) -> tuple[int, np.ndarray]:
 # endregion NUMBA GRAPH LABELLING
 
 
+class EmptyGraphError(RuntimeError):
+    pass
+
+
 class Graph:
     __slots__ = (
         "_indegree",
@@ -160,7 +164,7 @@ class Graph:
         If the node index is not set it will throw a RuntimeError.
         """
         if len(self.index) == 0:
-            raise RuntimeError("You must provide the nodes first.")
+            raise EmptyGraphError("Cannot set edges on an empty graph.")
 
         N = len(self.index)
         self.adj = np.zeros(shape=(N, N), dtype=np.int8)
@@ -261,6 +265,13 @@ class Graph:
             yield from self.dfs_k_paths(k, hop, _current_path)
             _current_path.pop()
 
+    def get_subgraph_label(
+        self, nodes: tuple[NodeIndex, ...]
+    ) -> tuple[int, np.ndarray]:
+        """Return subgraph from adjacency and its canonical label."""
+        sub_adj = self.adj[np.ix_(nodes, nodes)]
+        return search_canonical_label(sub_adj)
+
     def get_k_subgraphs(
         self,
         k: int,
@@ -275,19 +286,17 @@ class Graph:
             - np.ndarray: their adjacency matrix
             - int: the canonical label of the adjacency matrix
         """
-        A = self.adj
         seen_paths = _seen_paths
         if seen_paths is None:
             seen_paths = set()
 
         for path in self.dfs_k_paths(k, entry, _current_path):
-            path_nodes = tuple(frozenset(path))
+            path_nodes = tuple(set(path))
             if path_nodes in seen_paths:
                 continue
             seen_paths.add(path_nodes)
-            sub_A = A[np.ix_(path_nodes, path_nodes)]
-            label, _ = search_canonical_label(sub_A)
-            yield tuple(path), sub_A, label
+            label, sub_adj = self.get_subgraph_label(path_nodes)
+            yield tuple(path), sub_adj, label
 
             if not self.is_node_sink(path[-1]):
                 yield from self.get_k_subgraphs(
