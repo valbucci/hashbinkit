@@ -32,7 +32,7 @@ NodePath: TypeAlias = tuple[NodeIndex, ...]
 # ---------------------------------------------------------------------
 
 
-@njit
+@njit(cache=True)
 def label_permutation(matrix: np.ndarray, permutation: np.ndarray) -> int:
     """Label matrix permutation bits as integer."""
     label = 0
@@ -46,7 +46,7 @@ def label_permutation(matrix: np.ndarray, permutation: np.ndarray) -> int:
     return label
 
 
-@njit
+@njit(cache=True)
 def swap_array_values(a: int, b: int, array: np.ndarray) -> None:
     """Swap positions a <-> b in array."""
     tmp = array[a]
@@ -54,7 +54,7 @@ def swap_array_values(a: int, b: int, array: np.ndarray) -> None:
     array[b] = tmp
 
 
-@njit
+@njit(cache=True)
 def next_permutation(n: int, array: np.ndarray) -> bool:
     """Generate next in-place permutation of ordered array.
 
@@ -84,14 +84,14 @@ def next_permutation(n: int, array: np.ndarray) -> bool:
     return True
 
 
-@njit
+@njit(cache=True)
 def copy_array(dst, src) -> None:
     """Copy src into dst."""
     for i in range(len(dst)):
         dst[i] = src[i]
 
 
-@njit
+@njit(cache=True)
 def search_canonical_label(matrix) -> tuple[int, np.ndarray]:
     """Brute-force lowest int label for isomorphic adjacency matrix.
 
