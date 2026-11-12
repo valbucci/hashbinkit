@@ -10,11 +10,20 @@ from collections.abc import Iterable
 from hashlib import shake_128
 from typing import Self
 
-from hexio import HexInt
+import numpy as np
+from numba import float64, uint8, uint32
+from numba.experimental.jitclass.decorators import jitclass
 
 from .common import BaseFuzzyDigest, HashableElement, hashable_to_bytes
 
+accumulator_spec = [
+    ("size", uint32),  # for the bit size (allowing huge SimHash)
+    ("vector", float64[:]),  # for the accumulator vector
+    ("collapsed_bytes", uint8[:]),  # for the collapsed bits as bytes
+]
 
+
+@jitclass(accumulator_spec)
 class SimHashAccumulator:
     """Accumulator utilities for SimHash generation."""
 
@@ -27,9 +36,13 @@ class SimHashAccumulator:
 
         """
         self.size = size
-        self.vector = [0] * size
+        self.vector = np.zeros(size, dtype=np.float64)
+        byte_size = size // 8
+        if size % 8 > 0:
+            byte_size += 1
+        self.collapsed_bytes = np.zeros(byte_size, dtype=np.uint8)
 
-    def add(self, value: int) -> None:
+    def add(self, feature_hash: bytes, weight: float = 1.0) -> None:
         """Insert value bits to the accumulator.
 
         From left to right, the value bits are
@@ -38,42 +51,53 @@ class SimHashAccumulator:
         if bits[i] == 0 --> vector[i] -= 1
         """
         # range reversed to work from left to right
-        # i.e. '0b10' is processed as 1 then 0 for vector of size 2
-        # otherwise it will stream 0, 0, 1, 0 for a vector of size 4
-        for i in reversed(range(self.size)):
-            bit_at_loc = (value >> i) & 1
-            if bit_at_loc == 1:
-                self.vector[i] += 1
-            else:
-                self.vector[i] -= 1
+        # i.e. 0b1000 is processed as 1, 0, 0, 0
+        bit_index = 0
+        for byte_value in feature_hash:
+            for i in range(8):  # 8 bits
+                bit_at_loc = (byte_value >> i) & 1
+                if bit_at_loc == 1:
+                    self.vector[bit_index + i] += weight
+                else:
+                    self.vector[bit_index + i] -= weight
+            bit_index += 8
 
-    def collapse(self) -> int:
+    def collapse(self) -> np.ndarray:
         """Collapse accumulator vector.
 
         Positive and negative slots in the accumulator vector
         are represented as ones and zeroes, respectively.
         """
-        final_bits = "".join(
-            ["1" if value >= 0 else "0" for value in self.vector]
-        )
-        return int(final_bits, 2)
+        # Basically do the same as np.packbits
+        # using big endian.
+        # Better than np.packbits because fixes
+        # issues where values are not divisible by 8
+
+        bits_start = 0
+        bits_end = 8 - (self.size % 8)
+        bits_end_prev = 0
+        for byte_index, _ in enumerate(self.collapsed_bytes):
+            for bit_pos in range(bits_start, bits_end):
+                if self.vector[bit_pos] >= 0:
+                    offset = bit_pos - bits_end_prev
+                    self.collapsed_bytes[byte_index] |= 1 << offset
+            bits_end_prev = bits_end
+            bits_start = bits_end
+            bits_end = bits_start + 8
+
+        return self.collapsed_bytes
 
 
 class BaseSimHash(BaseFuzzyDigest):
     """Abstract SimHash class of undefined size."""
 
     @classmethod
-    def hash_feature(cls, feature: HashableElement) -> int:
+    def hash_feature(cls, feature: HashableElement) -> bytes:
         """Hash feature into digest of given bit size."""
         feature_bytes = hashable_to_bytes(feature)
-        feature_hash = shake_128(feature_bytes, usedforsecurity=False).digest(
+        return shake_128(feature_bytes, usedforsecurity=False).digest(
             length=cls.byte_size()
         )
-        # NOTE: cls.mask caps the digest for fuzzy hashes
-        #       with bit size not divisible by 8 (e.g. 37)
-        # This may be unnecessary if accumulator discards
-        # extra bits already
-        return HexInt.from_bytes(feature_hash) & cls.mask()
 
     @classmethod
     def from_features(cls, features: Iterable[HashableElement]) -> Self:
@@ -84,5 +108,5 @@ class BaseSimHash(BaseFuzzyDigest):
             feature_hash = cls.hash_feature(feature)
             accumulator.add(feature_hash)
 
-        simhash = accumulator.collapse()
-        return cls(simhash)
+        simhash_bytes = bytes(accumulator.collapse())
+        return cls.from_bytes(simhash_bytes)
