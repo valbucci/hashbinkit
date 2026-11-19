@@ -1,13 +1,11 @@
 import struct
-from collections.abc import Iterable
-from typing import Callable, ClassVar, Self, TypeAlias, Union
+from collections.abc import Callable, Iterable
+from typing import ClassVar, Self, TypeAlias
 
 from hexio import HexInt, HexStr, HexValue
 
-HashablePrimitive: TypeAlias = Union[str, int, float, bytes, bool, None]
-HashableElement: TypeAlias = Union[
-    HashablePrimitive, tuple["HashableElement", ...]
-]
+HashablePrimitive: TypeAlias = str | int | float | bytes | bool | None
+HashableElement: TypeAlias = HashablePrimitive | tuple["HashableElement", ...]
 
 
 def hashable_to_bytes(hashable: HashableElement) -> bytes:

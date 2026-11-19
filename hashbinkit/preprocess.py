@@ -1,6 +1,7 @@
 """Process raw artefacts for feature encoding."""
 
 import logging
+import re
 from collections.abc import Iterator
 from typing import Literal
 
@@ -8,10 +9,10 @@ from r2bagpipe import (
     BinaryDataManager,
     EsilTokenType,
     FunctionCodeData,
+    FunctionZignatureData,
     ReferenceType,
 )
 
-from _swiper import CANONICAL_IR
 from hashbinkit.encode.graph import NodeKey
 
 from .encode import Graph, Sequence
@@ -22,6 +23,10 @@ logger.addHandler(logging.NullHandler())
 
 # region CONSTANTS
 
+VAR_BITS_REGEX = re.compile(
+    r"\b(u?int|ptr|char|long|short|float|double)(\d+_?t?)\b",
+    flags=re.IGNORECASE,
+)
 
 # NOTE: OPTYPE_CANONICAL was generated using Claude Sonnet 4.6
 #       including source code file in context as reference (AI:w).
@@ -163,14 +168,14 @@ def process_opcodes(
 
     def token_iter() -> Iterator[str]:
         for op_type in func_code.iter_op_types():
-            if CANONICAL_IR[op_type] in ("NOP", "UNK"):
+            if OPTYPE_CANONICAL[op_type] in ("NOP", "UNK"):
                 continue
             if normalise is None or (
                 normalise != "all" and op_type not in normalise
             ):
                 yield op_type
             else:
-                yield CANONICAL_IR[op_type]
+                yield OPTYPE_CANONICAL[op_type]
 
     return Sequence(token_iter())
 
@@ -208,6 +213,33 @@ def process_references(
                 yield reference.ref_type.name
             else:
                 yield reference.ref_kind.name
+
+    return Sequence(token_iter())
+
+
+def process_variables(
+    func_zig: FunctionZignatureData,
+    mode: Literal["all", "args", "locals"] = "all",
+    keep_bits=True,
+) -> Sequence:
+    """Parse function's variable types into Sequence encoder."""
+
+    def strip_bits(variable_type: str) -> str:
+        return VAR_BITS_REGEX.sub(
+            lambda m: m.group(1).lower(), variable_type
+        ).strip()
+
+    def token_iter() -> Iterator[str]:
+        if mode in ("args", "all"):
+            if keep_bits:
+                yield from func_zig.arg_types
+            else:
+                yield from map(strip_bits, func_zig.arg_types)
+        if mode in ("locals", "all"):
+            if keep_bits:
+                yield from func_zig.local_types
+            else:
+                yield from map(strip_bits, func_zig.local_types)
 
     return Sequence(token_iter())
 
