@@ -1,6 +1,6 @@
 import pytest
 
-from hashbinkit.hash import BaseUnaryCode
+from hashbinkit.digests import BaseUnaryCode
 
 
 class UnaryCode64(BaseUnaryCode):

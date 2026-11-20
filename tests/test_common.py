@@ -1,6 +1,6 @@
 import pytest
 
-from hashbinkit.hash import BaseFuzzyDigest
+from hashbinkit.digests import BaseFuzzyDigest
 
 
 class FuzzyDigest40(BaseFuzzyDigest):

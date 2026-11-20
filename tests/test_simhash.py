@@ -1,4 +1,4 @@
-from hashbinkit.hash import BaseSimHash
+from hashbinkit.digests import BaseSimHash
 
 
 class SimHash64(BaseSimHash):

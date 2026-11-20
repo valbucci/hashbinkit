@@ -1,6 +1,6 @@
 import pytest
 
-from hashbinkit.hash import BaseBloomFilter
+from hashbinkit.digests import BaseBloomFilter
 
 
 class BloomFilter64(BaseBloomFilter):
