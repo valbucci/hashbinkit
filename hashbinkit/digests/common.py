@@ -1,12 +1,9 @@
 import struct
 from collections.abc import Callable, Hashable, Iterable
-from typing import ClassVar, Self, TypeAlias
+from typing import ClassVar, Self
 
 import numpy as np
 from hexio import HexInt, HexStr, HexValue, hexvalue_to_bytes
-
-HashablePrimitive: TypeAlias = str | int | float | bytes | bool | None
-HashableElement: TypeAlias = HashablePrimitive | tuple["HashableElement", ...]
 
 
 def hashable_to_bytes(hashable: Hashable) -> bytes:
