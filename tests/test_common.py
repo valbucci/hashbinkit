@@ -3,60 +3,54 @@ import pytest
 from hashbinkit.hash import BaseFuzzyDigest
 
 
-class FuzzyDigest37(BaseFuzzyDigest):
-    BIT_SIZE = 37
+class FuzzyDigest40(BaseFuzzyDigest):
+    BIT_SIZE = 40
 
 
 class TestFuzzyDigest:
-    def test_print(self):
-        digest37 = FuzzyDigest37(1)
-        binexpected37 = "0" * 36 + "1"
-        assert digest37.binstr == binexpected37
-        hexexpected37 = "0" * 8 + "1"
-        assert digest37.hexstr == hexexpected37
-
     def test_length(self):
-        digest37 = FuzzyDigest37(1)
-        assert len(digest37) == 37
+        digest40 = FuzzyDigest40(1)
+        assert len(digest40) == 40
+        assert digest40.bytes_array.size == digest40.byte_size()
 
     def test_and(self):
-        zero_digest37 = FuzzyDigest37()
-        full_digest37 = FuzzyDigest37(int("1" * 37, 2))
-        assert zero_digest37 & full_digest37 == zero_digest37
+        zero_digest40 = FuzzyDigest40()
+        full_digest40 = FuzzyDigest40(int("1" * 40, 2))
+        assert zero_digest40 & full_digest40 == zero_digest40
 
-        four_digest37 = FuzzyDigest37(4)
-        assert four_digest37 & zero_digest37 == zero_digest37
-        assert four_digest37 & full_digest37 == four_digest37
+        four_digest40 = FuzzyDigest40(4)
+        assert four_digest40 & zero_digest40 == zero_digest40
+        assert four_digest40 & full_digest40 == four_digest40
 
     def test_or(self):
-        zero_digest37 = FuzzyDigest37()
-        full_digest37 = FuzzyDigest37(int("1" * 37, 2))
-        assert zero_digest37 | full_digest37 == full_digest37
+        zero_digest40 = FuzzyDigest40()
+        full_digest40 = FuzzyDigest40(int("1" * 40, 2))
+        assert zero_digest40 | full_digest40 == full_digest40
 
-        four_digest37 = FuzzyDigest37(4)
-        assert four_digest37 | zero_digest37 == four_digest37
-        assert four_digest37 | full_digest37 == full_digest37
+        four_digest40 = FuzzyDigest40(4)
+        assert four_digest40 | zero_digest40 == four_digest40
+        assert four_digest40 | full_digest40 == full_digest40
 
     def test_xor(self):
-        zero_digest37 = FuzzyDigest37()
-        full_digest37 = FuzzyDigest37(int("1" * 37, 2))
-        assert zero_digest37 ^ full_digest37 == full_digest37
+        zero_digest40 = FuzzyDigest40()
+        full_digest40 = FuzzyDigest40(int("1" * 40, 2))
+        assert zero_digest40 ^ full_digest40 == full_digest40
 
-        four_digest37 = FuzzyDigest37(4)
-        assert four_digest37 ^ zero_digest37 == four_digest37
-        assert four_digest37 ^ full_digest37 == ~four_digest37
+        four_digest40 = FuzzyDigest40(4)
+        assert four_digest40 ^ zero_digest40 == four_digest40
+        assert four_digest40 ^ full_digest40 == ~four_digest40
 
     def test_popcount(self):
-        four_digest37 = FuzzyDigest37(4)
-        full_digest37 = FuzzyDigest37().mask()
-        assert four_digest37.popcount() == 1
-        assert full_digest37.popcount() == 37
+        four_digest40 = FuzzyDigest40(4)
+        full_digest40 = FuzzyDigest40().mask()
+        assert four_digest40.popcount() == 1
+        assert full_digest40.popcount() == 40
 
     def test_distance(self):
-        zero_digest37 = FuzzyDigest37()
-        one_digest37 = FuzzyDigest37(1)
-        assert zero_digest37.distance(one_digest37, "hamming") == 1
-        assert zero_digest37.distance(one_digest37) == 1
+        zero_digest40 = FuzzyDigest40()
+        one_digest40 = FuzzyDigest40(1)
+        assert zero_digest40.distance(one_digest40, "hamming") == 1
+        assert zero_digest40.distance(one_digest40) == 1
 
         with pytest.raises(NotImplementedError):
-            assert zero_digest37.distance(one_digest37, "notimplemented") == 1
+            assert zero_digest40.distance(one_digest40, "notimplemented") == 1

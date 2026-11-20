@@ -30,12 +30,12 @@ class TestUnaryCode:
         with pytest.raises(ValueError):
             UnaryCode64.encode(self.out_of_bound)
 
-        assert UnaryCode64.encode(self.valid).bit_count() == self.valid
+        assert UnaryCode64.encode(self.valid).popcount() == self.valid
 
     def test_similarity_importance(self):
         """Test similarity importance based on value.
 
-        For three values A, B, and C where: A = B + 1 = C + 2;
+        For three values A, B, and C where: A + 2 = B + 1 = C ;
         We expect similarity(A, B) > similarity(B, C)
         """
         therm_a = UnaryCode64.encode(self.valid)

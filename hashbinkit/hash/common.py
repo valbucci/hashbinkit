@@ -1,14 +1,15 @@
 import struct
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Hashable, Iterable
 from typing import ClassVar, Self, TypeAlias
 
-from hexio import HexInt, HexStr, HexValue
+import numpy as np
+from hexio import HexInt, HexStr, HexValue, hexvalue_to_bytes
 
 HashablePrimitive: TypeAlias = str | int | float | bytes | bool | None
 HashableElement: TypeAlias = HashablePrimitive | tuple["HashableElement", ...]
 
 
-def hashable_to_bytes(hashable: HashableElement) -> bytes:
+def hashable_to_bytes(hashable: Hashable) -> bytes:
     # Handle HashablePrimitive types
     if isinstance(hashable, bytes):
         return hashable
@@ -22,7 +23,7 @@ def hashable_to_bytes(hashable: HashableElement) -> bytes:
         return struct.pack("d", hashable)
     elif hashable is None:
         return b""
-    # Handle nested HashableElement by concatenating them
+    # Handle nested Hashable elements by concatenating them
     # Use delimiter `,` and separators `(` and `)`
     # to distinguish tuples from lone primitives
     elif isinstance(hashable, tuple):
@@ -38,50 +39,52 @@ def hashable_to_bytes(hashable: HashableElement) -> bytes:
 
 
 # region SIMILARITY / DISTANCE
-def hamming_distance(a: int, b: int) -> int:
-    return (a ^ b).bit_count()
+def hamming_distance(a: "BaseFuzzyDigest", b: "BaseFuzzyDigest") -> np.uint64:
+    return (a ^ b).popcount()
 
 
-def nand_distance(a: int, b: int) -> int:
+def nand_distance(a: "BaseFuzzyDigest", b: "BaseFuzzyDigest") -> np.uint64:
     """Distance based on NAND ones population."""
-    return (~(a & b)).bit_count()
+    return (~(a & b)).popcount()
 
 
-def zero_neutral_similarity(a: int, b: int) -> float:
+def zero_neutral_similarity(
+    a: "BaseFuzzyDigest", b: "BaseFuzzyDigest"
+) -> float:
     """Hamming similarity based on matching ones only."""
     diff = hamming_distance(a, b)
-    union = (a | b).bit_count()
+    union = (a | b).popcount()
     return 1 - diff / union
 
 
-def jaccard_index(a: int, b: int) -> float:
+def jaccard_index(a: "BaseFuzzyDigest", b: "BaseFuzzyDigest") -> float:
     """Bitwise jaccard similarity.
 
     Treats two zeroes (empty sets) as equal.
     """
     union = a | b
-    union_pop = union.bit_count()
+    union_pop = union.popcount()
 
     # Handle empty sets
     if union_pop == 0:
         return 1.0
 
     intersection = a & b
-    intersection_pop = intersection.bit_count()
+    intersection_pop = intersection.popcount()
     return intersection_pop / union_pop
 
 
-def jaccard_no_empty(a: int, b: int) -> float:
+def jaccard_no_empty(a: "BaseFuzzyDigest", b: "BaseFuzzyDigest") -> float:
     """Like jaccard_index but two empty sets are dissimilar."""
     union = a | b
-    union_pop = union.bit_count()
+    union_pop = union.popcount()
 
     # Handle empty sets
     if union_pop == 0:
         return 0.0
 
     intersection = a & b
-    intersection_pop = intersection.bit_count()
+    intersection_pop = intersection.popcount()
     return intersection_pop / union_pop
 
 
@@ -99,8 +102,10 @@ SIMILARITY_FUNCS: dict[str, Callable] = {
     "zero_neutral": zero_neutral_similarity,
 }
 
+_BIT_MASKS = np.array([1 << i for i in range(8)], dtype=np.uint8)
 
-class BaseFuzzyDigest(HexInt):
+
+class BaseFuzzyDigest:
     """An abstract similarity hash.
 
     When compared with another hash of the same type it
@@ -113,26 +118,30 @@ class BaseFuzzyDigest(HexInt):
 
     BIT_SIZE: ClassVar[int] = 0
 
-    def __new__(cls, value: HexValue = 0) -> Self:
-        cls._ensure_bit_size()
-        obj = super().__new__(cls, value)
-        numeric_value = int(obj)
+    @classmethod
+    def _digest_to_array(
+        cls, digest: HexValue | np.ndarray | Self
+    ) -> np.ndarray:
+        if isinstance(digest, BaseFuzzyDigest):
+            return digest.bytes_array.copy()
 
-        if numeric_value >= 1 << cls.BIT_SIZE:
+        if isinstance(digest, np.ndarray):
+            np_bytes = np.array(digest, dtype=np.uint8)
+        else:
+            digest_bytes = hexvalue_to_bytes(digest)  # type: ignore
+            np_bytes = np.frombuffer(digest_bytes, dtype=np.uint8)
+
+        expected_size = cls.byte_size()
+        if np_bytes.size == expected_size:
+            return np_bytes
+        elif np_bytes.size < expected_size:
+            offset = expected_size - np_bytes.size
+            return np.pad(np_bytes, (offset, 0), mode="constant")
+        else:
             raise ValueError(
-                f"Value does not fit in a {cls.BIT_SIZE}-bit digest"
+                f"Value '{digest!r}' does not fit in a {cls.__name__}"
+                f" digest ({np_bytes.size}B > {expected_size}B)"
             )
-
-        return obj
-
-    def __len__(self):
-        return self.BIT_SIZE
-
-    def __str__(self) -> str:
-        return (HexStr(self) | self.upper_bound())[1:]
-
-    def __invert__(self) -> Self:
-        return self.__class__(self.mask() & ~int(self))
 
     @classmethod
     def _ensure_bit_size(cls) -> None:
@@ -142,29 +151,65 @@ class BaseFuzzyDigest(HexInt):
                 "You must extend the BaseFuzzyDigest class"
                 " and declare a BIT_SIZE > 0."
             )
+        elif cls.BIT_SIZE % 8 != 0:
+            raise ValueError(
+                "You must extend the BaseFuzzyDigest class"
+                " with a BIT_SIZE divisible by 8."
+            )
+
+    def __init__(self, digest: HexValue | np.ndarray | Self = 0) -> None:
+        self._ensure_bit_size()
+        self.bytes_array = self._digest_to_array(digest)
+
+    def __len__(self):
+        return self.bit_size()
+
+    def __bytes__(self) -> bytes:
+        return bytes(self.bytes_array)
+
+    def __str__(self) -> str:
+        return HexStr(bytes(self))
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}("{self!s}")'
+
+    def __invert__(self) -> Self:
+        return self.__class__(~self.bytes_array)
+
+    def __eq__(self, value: object) -> bool:
+        try:
+            return np.array_equal(
+                self.bytes_array,
+                self._digest_to_array(value),  # type: ignore
+            )
+        except ValueError:
+            return False
+
+    def __or__(self, value: HexValue | np.ndarray | Self) -> Self:
+        np_digest = self.bytes_array | self._digest_to_array(value)
+        return self.__class__(np_digest)
+
+    def __xor__(self, value: HexValue | np.ndarray | Self) -> Self:
+        np_digest = self.bytes_array ^ self._digest_to_array(value)
+        return self.__class__(np_digest)
+
+    def __and__(self, value: HexValue | np.ndarray | Self) -> Self:
+        np_digest = self.bytes_array & self._digest_to_array(value)
+        return self.__class__(np_digest)
 
     @classmethod
-    def from_features(cls, features: Iterable[HashableElement]) -> Self:
+    def from_features(cls, features: Iterable[Hashable]) -> Self:
         raise NotImplementedError(
             "You must extend the BaseFuzzyDigest class and define this method"
         )
 
     @classmethod
-    def upper_bound(cls) -> HexInt:
-        return HexInt(1 << cls.BIT_SIZE)
-
-    @classmethod
     def mask(cls) -> Self:
-        return cls(cls.upper_bound() - 1)
-
-    @property
-    def hexstr(self) -> HexStr:
-        return HexStr(str(self))
-
-    @property
-    def binstr(self) -> str:
-        bounded_value = self.upper_bound() | self
-        return bin(bounded_value)[3:]
+        try:
+            return cls._MASK
+        except AttributeError:
+            cls._MASK = cls(np.full(cls.byte_size(), 255, dtype=np.uint8))
+            return cls._MASK
 
     @classmethod
     def bit_size(cls) -> int:
@@ -177,15 +222,16 @@ class BaseFuzzyDigest(HexInt):
             return cls.BYTE_SIZE
         except AttributeError:
             bit_size = cls.bit_size()
-            byte_size = bit_size // 8
-            if bit_size % 8 != 0:
+            byte_size = bit_size >> 3  # bit_size // 8
+            bit_modulo = bit_size & 0b111  # bit_size % 8
+            if bit_modulo != 0:
                 byte_size = byte_size + 1
             cls.BYTE_SIZE = byte_size
         return byte_size
 
-    def popcount(self) -> int:
-        """Alias for int.bit_count."""
-        return self.bit_count()
+    def popcount(self) -> np.uint64:
+        """Count the number of 1-bits in the digest."""
+        return np.bitwise_count(self.bytes_array).sum()
 
     def distance(self, other: Self, mode: str = "hamming") -> int:
         try:
@@ -208,3 +254,11 @@ class BaseFuzzyDigest(HexInt):
             raise NotImplementedError(
                 f"The similarity mode '{mode}' is not implemented."
             )
+
+    @staticmethod
+    def get_bit_coordinates(bit_pos: int) -> tuple[int, int]:
+        """Return (byte, bit) coordinates of bit position."""
+        return (
+            bit_pos >> 3,  # bit_pos // 8
+            bit_pos & 0b111,  # bit_pos % 8
+        )

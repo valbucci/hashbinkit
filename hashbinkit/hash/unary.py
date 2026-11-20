@@ -10,10 +10,12 @@ class BaseUnaryCode(BaseFuzzyDigest):
     following the standard unary coding convention.
     """
 
-    @staticmethod
-    def length_similarity(a: int, b: int) -> float:
+    @classmethod
+    def length_similarity(cls, a: Self, b: Self) -> float:
         """Score higher similarity when unary codes are smaller."""
-        return 1 / (1 + abs(a - b) * max(a, b))
+        a_int = (1 << int(a.popcount())) - 1
+        b_int = (1 << int(b.popcount())) - 1
+        return 1 / (1 + abs(a_int - b_int) * max(a_int, b_int))
 
     @classmethod
     def encode(cls, integer: int) -> Self:
@@ -32,7 +34,11 @@ class BaseUnaryCode(BaseFuzzyDigest):
         thermometer_integer = 2**integer - 1
         return cls(thermometer_integer)
 
-    def similarity(self, other, mode="hamming") -> float:
+    def similarity(  # type: ignore[reportIncompatibleMethodOverride]
+        self,
+        other: Self,
+        mode="hamming",
+    ) -> float:
         if mode == "length":
             return self.length_similarity(self, other)
 

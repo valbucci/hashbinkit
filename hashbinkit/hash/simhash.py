@@ -6,7 +6,7 @@ to implement a SimHash of chosen size.
 See SimHash64 class for usage example.
 """
 
-from collections.abc import Iterable
+from collections.abc import Hashable, Iterable
 from hashlib import shake_128
 from typing import Self
 
@@ -14,7 +14,7 @@ import numpy as np
 from numba import float64, uint8, uint32
 from numba.experimental.jitclass.decorators import jitclass
 
-from .common import BaseFuzzyDigest, HashableElement, hashable_to_bytes
+from .common import BaseFuzzyDigest, hashable_to_bytes
 
 accumulator_spec = [
     ("size", uint32),  # for the bit size (allowing huge SimHash)
@@ -103,7 +103,7 @@ class BaseSimHash(BaseFuzzyDigest):
     """Abstract SimHash class of undefined size."""
 
     @classmethod
-    def hash_feature(cls, feature: HashableElement) -> bytes:
+    def hash_feature(cls, feature: Hashable) -> bytes:
         """Hash feature into digest of given bit size."""
         feature_bytes = hashable_to_bytes(feature)
         return shake_128(feature_bytes, usedforsecurity=False).digest(
@@ -111,7 +111,7 @@ class BaseSimHash(BaseFuzzyDigest):
         )
 
     @classmethod
-    def from_features(cls, features: Iterable[HashableElement]) -> Self:
+    def from_features(cls, features: Iterable[Hashable]) -> Self:
         """Instantiate a SimHash digest from hashable features."""
         accumulator = SimHashAccumulator(cls.bit_size())
 
@@ -119,5 +119,4 @@ class BaseSimHash(BaseFuzzyDigest):
             feature_hash = cls.hash_feature(feature)
             accumulator.add(feature_hash)
 
-        simhash_bytes = bytes(accumulator.collapse())
-        return cls.from_bytes(simhash_bytes)
+        return cls(accumulator.collapse())

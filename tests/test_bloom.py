@@ -7,8 +7,8 @@ class BloomFilter64(BaseBloomFilter):
     BIT_SIZE = 64
 
 
-class BloomFilter37(BaseBloomFilter):
-    BIT_SIZE = 37
+class BloomFilter40(BaseBloomFilter):
+    BIT_SIZE = 40
 
 
 class TestBloomFilter:
@@ -26,9 +26,10 @@ class TestBloomFilter:
     def test_size_mismatch(self):
         test_features1 = (1, 2)
         test_features2 = (2, 3) + tuple(range(5, 10))
-        bf1 = BloomFilter37.from_features(test_features1)
+        bf1 = BloomFilter40.from_features(test_features1)
         bf2 = BloomFilter64.from_features(test_features2)
 
-        assert bf2.jaccard_index(bf1) > 0
         with pytest.raises(ValueError):
-            assert bf1.jaccard_index(bf2) > 0
+            assert bf2.jaccard_index(bf1) > 0  # type: ignore
+        with pytest.raises(ValueError):
+            assert bf1.jaccard_index(bf2) > 0  # type: ignore

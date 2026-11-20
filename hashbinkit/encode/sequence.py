@@ -20,7 +20,6 @@ class Sequence:
         """Set sequence elements, cache size and count frequency."""
         self.elements = tuple(elements)
         self.size = len(self.elements)
-        self.counter = Counter(self.elements)
 
     def get_indexed(self) -> Iterator[tuple[int, Hashable]]:
         """Iterate enumerated elements."""
@@ -37,14 +36,9 @@ class Sequence:
         if n > self.size:
             yield self.elements
 
-    def get_n_grams_sorted(self, n: int) -> Iterator[tuple[Hashable, ...]]:
-        """Iterate sorted n-grams over the ordered sequence."""
-        for n_gram in self.get_n_grams(n):
-            yield tuple(sorted(n_gram))
-
     def get_frequency(self) -> Iterator[tuple[Hashable, int]]:
         """Iterate each unique element and its frequency."""
-        yield from self.counter.items()
+        yield from Counter(self.elements).items()
 
     def get_frequency_sorted(self) -> list[tuple[Hashable, int]]:
         """Return sorted list of unique elements and frequency.
