@@ -91,6 +91,22 @@ def _serialize(type_: type, v: Any) -> bytes:
         if isinstance(v, cls):
             return serializer(v)
 
+    # --- Non-Optional Union (e.g. str | int | bytes): 1-byte type-index tag ---
+    # bool must be tested before int since bool is a subclass of int.
+    origin = get_origin(type_)
+    if origin is Union or isinstance(type_, types.UnionType):
+        variants = get_args(type_)
+        sorted_variants = sorted(
+            enumerate(variants),
+            key=lambda iv: iv[1] is not bool,  # bool first
+        )
+        for i, variant in sorted_variants:
+            if variant is type(None):
+                continue
+            if isinstance(v, variant):
+                return pack("<B", i) + _serialize(variant, v)
+        raise TypeError(f"Value {v!r} does not match any variant of {type_!r}")
+
     # --- Primitives ---
     if isinstance(v, bool):
         return pack("<?", v)
@@ -102,6 +118,8 @@ def _serialize(type_: type, v: Any) -> bytes:
         return pack("<f", v)
     if isinstance(v, str):
         return v.encode() + b"\x00"
+    if isinstance(v, bytes):
+        return pack("<I", len(v)) + v
 
     # --- numpy ndarray ---
     if isinstance(v, np.ndarray):
@@ -156,6 +174,13 @@ def _deserialize(type_: type, b: bytes) -> tuple[Any, bytes]:
         if cls is type_ or get_origin(cls) is type_:
             return deserializer(b)
 
+    # --- Non-Optional Union (e.g. str | int): read 1-byte type-index tag ---
+    origin = get_origin(type_)
+    if origin is Union or isinstance(type_, types.UnionType):
+        variants = get_args(type_)
+        (tag,) = unpack("<B", b[:1])
+        return _deserialize(variants[tag], b[1:])
+
     # --- Primitives ---
     if type_ is bool:
         return unpack("<?", b[:1])[0], b[1:]
@@ -169,6 +194,9 @@ def _deserialize(type_: type, b: bytes) -> tuple[Any, bytes]:
     if type_ is str:
         i = b.index(b"\x00")
         return b[:i].decode(), b[i + 1 :]
+    if type_ is bytes:
+        (length,) = unpack("<I", b[:4])
+        return b[4 : 4 + length], b[4 + length :]
 
     # --- numpy ndarray ---
     if isclass(type_) and issubclass(type_, np.ndarray):

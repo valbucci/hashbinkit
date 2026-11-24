@@ -1,8 +1,9 @@
 """Encode and manage graph-structured artefacts."""
 
 import logging
-from collections.abc import Hashable, Iterable, Iterator
-from typing import TypeAlias
+from collections.abc import Iterable, Iterator
+from dataclasses import dataclass, field
+from typing import Self, TypeAlias
 
 import numpy as np
 
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 
-NodeKey: TypeAlias = Hashable
+NodeKey: TypeAlias = str | int
 NodeIndex: TypeAlias = int
 NodeLabel: TypeAlias = str
 NodeEdge: TypeAlias = tuple[NodeKey, NodeKey]
@@ -30,24 +31,24 @@ class EmptyGraphError(RuntimeError):
     """Raised when edges are referenced in an empty graph."""
 
 
+@dataclass(slots=True, eq=False)
 class Graph(Serializable):
     """Generic manager to handle graph operations."""
 
-    __slots__ = (
-        "_indegree",
-        "_inputs_cache",
-        "_outdegree",
-        "_outputs_cache",
-        "adj",
-        "index",
-        "index_map",
-    )
+    index: tuple[NodeKey, ...] = field(default_factory=tuple)
+    index_map: dict[NodeKey, NodeIndex] = field(default_factory=dict)
+    _adj: np.ndarray | None = None
+    _indegree: np.ndarray | None = None
+    _outdegree: np.ndarray | None = None
+    _inputs_cache: dict[NodeIndex, np.ndarray] = field(default_factory=dict)
+    _outputs_cache: dict[NodeIndex, np.ndarray] = field(default_factory=dict)
 
-    def __init__(
+    def setup(
         self,
-        nodes: Iterable[NodeKey] = [],
-        edges: Iterable[NodeEdge] = [],
-    ) -> None:
+        nodes: Iterable[NodeKey] | None = None,
+        edges: Iterable[NodeEdge] | None = None,
+        outputs: Iterable[NodeOutputs] | None = None,
+    ) -> Self:
         """Init a graph with given nodes and edges.
 
         The nodes will be indexed following the same order as
@@ -55,22 +56,61 @@ class Graph(Serializable):
 
         If no nodes are provided an empty graph is created.
         """
-        self.setup_nodes(nodes)
-        try:
-            self.setup_edges(edges)
-        except EmptyGraphError:
-            # Just an empty graph
-            pass
+        if nodes is not None:
+            self.setup_nodes(nodes)
 
-    def setup_nodes(self, nodes: Iterable[NodeKey]) -> None:
+        if edges is not None:
+            self.setup_edges(edges)
+        elif outputs is not None:
+            self.setup_outputs(outputs)
+
+        return self.setup_cache()
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Graph):
+            return NotImplemented
+        if self._adj is None or other._adj is None:
+            raise EmptyGraphError(
+                "Comparing two graphs while at least one is empty."
+            )
+        if self.index != other.index:
+            return False
+
+        return np.array_equal(self._adj, other._adj)
+
+    @property
+    def adj(self) -> np.ndarray:
+        """The adjacency matrix."""
+        if self._adj is None:
+            raise EmptyGraphError(
+                "The adjacency matrix is not set because the graph is empty."
+            )
+        return self._adj
+
+    @property
+    def indegree(self) -> np.ndarray:
+        """Lookup a NodeIndex indegree (node_index -> indegree)."""
+        if self._indegree is None:
+            raise EmptyGraphError
+        return self._indegree
+
+    @property
+    def outdegree(self) -> np.ndarray:
+        """Lookup a NodeIndex outdegree (node_index -> outdegree)."""
+        if self._outdegree is None:
+            raise EmptyGraphError
+        return self._outdegree
+
+    def setup_nodes(self, nodes: Iterable[NodeKey]) -> Self:
         """Set the node index for internal use."""
         self.index = tuple(nodes)
         self.index_map: dict[NodeKey, NodeIndex] = {
             node_key: node_index
             for node_index, node_key in enumerate(self.index)
         }
+        return self
 
-    def setup_edges(self, edges: Iterable[NodeEdge]) -> None:
+    def setup_edges(self, edges: Iterable[NodeEdge]) -> Self:
         """Set adjacency matrix based on provided edges.
 
         Overwrites adjacency matrix with the provided edges.
@@ -80,19 +120,14 @@ class Graph(Serializable):
             raise EmptyGraphError("Cannot set edges on an empty graph.")
 
         N = len(self.index)
-        self.adj = np.zeros(shape=(N, N), dtype=np.int8)
+        self._adj = np.zeros(shape=(N, N), dtype=np.int8)
         for input, output in edges:
             input_index = self.index_map[input]
             output_index = self.index_map[output]
             self.adj[input_index, output_index] = 1
+        return self
 
-        # Cache indegree / outdegree values
-        self._indegree = np.count_nonzero(self.adj, axis=0)
-        self._outdegree = np.count_nonzero(self.adj, axis=1)
-        self._inputs_cache = {}
-        self._outputs_cache = {}
-
-    def setup_outputs(self, node_outputs: Iterable[NodeOutputs]) -> None:
+    def setup_outputs(self, node_outputs: Iterable[NodeOutputs]) -> Self:
         """Set adjacency matrix based on provided node outputs.
 
         Like `setup_edges` but with grouped outputs for each node.
@@ -105,6 +140,12 @@ class Graph(Serializable):
 
         return self.setup_edges(iterate_edges())
 
+    def setup_cache(self) -> Self:
+        """Cache indegree / outdegree values."""
+        self._indegree = np.count_nonzero(self.adj, axis=0)
+        self._outdegree = np.count_nonzero(self.adj, axis=1)
+        return self
+
     @property
     def size(self) -> int:
         """Amount of nodes in the graph."""
@@ -116,7 +157,7 @@ class Graph(Serializable):
 
     def get_node_indegree(self, node: NodeIndex) -> int:
         """Return node's number of inputs."""
-        return int(self._indegree[node])
+        return int(self.indegree[node])
 
     def get_node_inputs(self, node: NodeIndex) -> np.ndarray:
         """Return the index of all the inputs of given node."""
@@ -130,7 +171,7 @@ class Graph(Serializable):
 
     def get_node_outdegree(self, node: NodeIndex) -> int:
         """Return node's number of outputs."""
-        return int(self._outdegree[node])
+        return int(self.outdegree[node])
 
     def get_node_outputs(self, node: NodeIndex) -> np.ndarray:
         """Return the index of all the outputs from given node."""
