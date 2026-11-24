@@ -227,9 +227,9 @@ class OpcodeData(Serializable):
             return cls(
                 addr=get_addr(opcode_info),
                 n_bytes=opcode_info["size"],
-                raw_bytes=opcode_info["bytes"],
-                op_type=opcode_info["type"],
-                esil=opcode_info["esil"],
+                raw_bytes=opcode_info.get("bytes") or "",
+                op_type=opcode_info.get("type") or "",
+                esil=opcode_info.get("esil") or "",
                 ptr=filter_placeholder_addr(opcode_info.get("ptr")),
                 refs=refs,
                 xrefs=xrefs,
