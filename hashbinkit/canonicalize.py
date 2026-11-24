@@ -1,10 +1,34 @@
 """Map radare2 features into canonical groups."""
 
 import re
+from collections.abc import Iterable
 from enum import Enum
 
 import numpy as np
 from numba import njit
+
+
+def get_bucket(scalar: int, bucket_bounds: Iterable[int]) -> int:
+    """Assign scalar value to bucket number.
+
+    Compute value bucketing/binning based on the provided bounds.
+
+    Example:
+        >>> bucket_bounds = [5, 10, 15, 20]
+        >>> get_bucket(3, bucket_bounds)
+        0
+        >>> get_bucket(5, bucket_bounds)
+        1
+        >>> get_bucket(50, bucket_bounds)
+        4
+
+    """
+    bucket = 0
+    for upper_bound in bucket_bounds:
+        if scalar < upper_bound:
+            return bucket
+        bucket += 1
+    return bucket
 
 
 def get_canonical_symbol(func_name: str) -> str:
