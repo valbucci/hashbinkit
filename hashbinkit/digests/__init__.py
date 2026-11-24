@@ -1,4 +1,4 @@
-"""Expose fuzzy hash primitives."""
+"""Fuzzy hash primitives."""
 
 from .bloom import BaseBloomFilter as BaseBloomFilter
 from .common import BaseFuzzyDigest as BaseFuzzyDigest
