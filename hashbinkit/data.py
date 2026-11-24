@@ -406,8 +406,7 @@ class FunctionCodeData(Serializable):
 
                 blocks.append(block)
 
-            cfg.setup_nodes(block_addrs)
-            cfg.setup_edges(block_edges)
+            cfg.setup(block_addrs, block_edges)
 
             return cls(
                 # Identifiers
@@ -793,9 +792,7 @@ class BinaryDataManager(Serializable):
             yield from callers
             yield from terminal_callees
 
-        self.func_call_graph.setup_nodes(_iter_cg_nodes())
-        self.func_call_graph.setup_outputs(outputs)
-
+        self.func_call_graph.setup(_iter_cg_nodes(), outputs=outputs)
         return self.func_call_graph.size
 
 
