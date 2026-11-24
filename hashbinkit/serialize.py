@@ -265,10 +265,17 @@ class Serializable:
     def serialize(self) -> bytes:
         """Serialize self into bytes."""
         resolved = get_type_hints(type(self))
-        return b"".join(
-            _serialize(resolved[f.name], getattr(self, f.name))
-            for f in fields(self)  # type: ignore[reportArgumentType]
-        )
+        parts = []
+        for f in fields(self):  # type: ignore[reportArgumentType]
+            val = getattr(self, f.name)
+            try:
+                parts.append(_serialize(resolved[f.name], val))
+            except TypeError as e:
+                raise TypeError(
+                    f"{type(self).__name__}.{f.name} = {val!r} "
+                    f"(annotated {resolved[f.name]!r}): {e}"
+                ) from e
+        return b"".join(parts)
 
     @classmethod
     def _partial_deserialize(cls, b: bytes) -> tuple[Self, bytes]:
