@@ -380,6 +380,7 @@ class FunctionCodeData(Serializable):
 
     @classmethod
     def from_info(cls, code_info: R2CodeInfo) -> Self | None:
+        func_addr = None
         try:
             func_addr = get_addr(code_info)
             n_bytes = code_info["size"]
@@ -417,7 +418,7 @@ class FunctionCodeData(Serializable):
 
             return cls(
                 # Identifiers
-                addr=get_addr(code_info),
+                addr=func_addr,
                 name=code_info["name"],
                 # General info counts
                 n_stack=code_info["stack"],
@@ -434,7 +435,9 @@ class FunctionCodeData(Serializable):
             )
 
         except KeyError:
-            logger.exception("Failed to create FunctionFeatures object.")
+            logger.exception(
+                f"Failed to create FunctionCodeData object at {func_addr}."
+            )
             return None
 
     @property
@@ -524,7 +527,9 @@ class FunctionZignatureData(Serializable):
 
     @classmethod
     def from_info(cls, zig_info: R2Zignature) -> Self | None:
+        func_addr = None
         try:
+            func_addr = get_addr(zig_info)
             # Compute PIC pattern and hash
             pic_pattern = cls.get_pic_pattern(
                 zig_info["bytes"], zig_info["mask"]
@@ -552,7 +557,7 @@ class FunctionZignatureData(Serializable):
             )
 
             return cls(
-                addr=get_addr(zig_info),
+                addr=func_addr,
                 name=zig_info["name"],
                 pic_hash=pic_hash,
                 pic_pattern=pic_pattern,
@@ -567,6 +572,9 @@ class FunctionZignatureData(Serializable):
             )
 
         except KeyError:
+            logger.exception(
+                f"Failed to create FunctionZignature object at {func_addr}."
+            )
             return None
 
 
