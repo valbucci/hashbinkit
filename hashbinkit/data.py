@@ -678,6 +678,7 @@ class BinaryDataManager(Serializable):
 
     def register_bininfo_data(self, bininfo_path: Path) -> None:
         """Register general information about the binary file."""
+        logger.debug("Registering binary metadata ...")
         with open(bininfo_path, "r") as bininfo_file:
             bininfo: R2BinInfo = json.load(bininfo_file)
 
@@ -696,6 +697,7 @@ class BinaryDataManager(Serializable):
 
         Returns the amount of registered CFGs.
         """
+        logger.debug("Registering CFG data ...")
 
         def _iterate_cfg() -> Iterator[R2CodeInfo]:
             with open(cfg_path, "r") as cfg_file:
@@ -737,6 +739,8 @@ class BinaryDataManager(Serializable):
 
         Returns the amount of registered zignatures.
         """
+        logger.debug("Registering zignatures data ...")
+
         with open(zig_path, "r") as zig_file:
             # We expect a list of R2Zignature dictionaries
             zigs: list[R2Zignature] = json.load(zig_file)
@@ -768,6 +772,8 @@ class BinaryDataManager(Serializable):
         Functions won't be registered in `func_index` but they will be
         included in the `name_symbols` set.
         """
+        logger.debug("Registering call graph data ...")
+
         with open(cg_path, "r") as cg_file:
             cg: R2CallGraph = json.load(cg_file)
 
@@ -827,7 +833,7 @@ def get_data_manager(
     cg_path = get_path("cg")
     data_manager = BinaryDataManager(binary_name)
     data_manager.register_bininfo_data(bininfo_path)
-    data_manager.register_cfg_data(cfg_path)
     data_manager.register_zig_data(zig_path)
     data_manager.register_cg_data(cg_path)
+    data_manager.register_cfg_data(cfg_path)
     return data_manager
