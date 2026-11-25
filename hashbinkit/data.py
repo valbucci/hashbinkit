@@ -381,6 +381,10 @@ class FunctionCodeData(Serializable):
     @classmethod
     def from_info(cls, code_info: R2CodeInfo) -> Self | None:
         try:
+            func_addr = get_addr(code_info)
+            n_bytes = code_info["size"]
+            func_end = func_addr + n_bytes
+
             # Process blocks
             blocks = []
             block_addrs = []
@@ -402,11 +406,14 @@ class FunctionCodeData(Serializable):
 
                 block_addrs.append(block.addr)
                 for succ_addr in block.successors:
-                    block_edges.append((block.addr, succ_addr))
+                    if succ_addr >= func_addr and succ_addr < func_end:
+                        # NOTE: If this isn't the case it could be
+                        #       an indirect call to other function.
+                        block_edges.append((block.addr, succ_addr))
 
                 blocks.append(block)
 
-            cfg.setup(block_addrs, block_edges)
+            cfg.setup(nodes=block_addrs, edges=block_edges)
 
             return cls(
                 # Identifiers
@@ -725,7 +732,7 @@ class BinaryDataManager(Serializable):
                 continue
             data = FunctionCodeData.from_info(cfg)
             if data is None:
-                logger.warning("Couldn't create FunctionZignature.")
+                logger.warning("Couldn't create FunctionCodeData.")
                 continue
             self.func_cfgs[func_addr] = data
             self.register_func_addr(func_addr)
