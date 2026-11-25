@@ -834,6 +834,6 @@ def get_data_manager(
     data_manager = BinaryDataManager(binary_name)
     data_manager.register_bininfo_data(bininfo_path)
     data_manager.register_zig_data(zig_path)
-    data_manager.register_cg_data(cg_path)
     data_manager.register_cfg_data(cfg_path)
+    data_manager.register_cg_data(cg_path)
     return data_manager
