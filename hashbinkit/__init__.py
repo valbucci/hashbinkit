@@ -12,3 +12,4 @@ from .digests import BaseFuzzyDigest as BaseFuzzyDigest
 from .digests import BaseSimHash as BaseSimHash
 from .digests import BaseUnaryCode as BaseUnaryCode
 from .digests import hashable_to_bytes as hashable_to_bytes
+from .graph import Graph as Graph
