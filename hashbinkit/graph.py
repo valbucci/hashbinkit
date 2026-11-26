@@ -121,6 +121,15 @@ class Graph:
             )
         return self._adj_csc
 
+    @classmethod
+    def build(cls, adj: csr_array, index: tuple[NodeKey, ...]) -> Self:
+        """Return new Graph from a CSR adjacency and node index."""
+        graph = cls()
+        graph.setup_nodes(index)
+        graph._adj_csr = adj
+        graph.setup_cache()
+        return graph
+
     def setup_nodes(self, nodes: Iterable[NodeKey]) -> Self:
         """Set the node index for internal use."""
         self.index = tuple(nodes)
