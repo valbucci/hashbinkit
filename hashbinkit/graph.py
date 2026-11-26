@@ -177,7 +177,7 @@ class Graph:
 
     def is_node_sink(self, node: NodeIndex) -> bool:
         """Return True if node has outdegree of 0."""
-        return not np.any(self.adj[node])
+        return self.adj[node].nnz == 0
 
     def get_node_indegree(self, node: NodeIndex) -> int:
         """Return node's number of inputs."""
@@ -189,7 +189,7 @@ class Graph:
             return self._inputs_cache[node]
         except KeyError:
             pass
-        inputs = np.flatnonzero(self.adj[:, node])
+        inputs = self.adj_csc[:, node].indices
         self._inputs_cache[node] = inputs
         return inputs
 
@@ -204,7 +204,7 @@ class Graph:
         except KeyError:
             pass
 
-        outputs = np.flatnonzero(self.adj[node])
+        outputs = self.adj[node].indices
         self._outputs_cache[node] = outputs
         return outputs
 
@@ -247,7 +247,7 @@ class Graph:
         self, nodes: tuple[NodeIndex, ...]
     ) -> tuple[int, np.ndarray]:
         """Return subgraph from adjacency and its canonical label."""
-        sub_adj = self.adj[np.ix_(nodes, nodes)]
+        sub_adj = self.adj[nodes, :][:, nodes].toarray()
         return get_adjacency_label(sub_adj)
 
     def get_k_subgraphs(
