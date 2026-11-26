@@ -88,7 +88,7 @@ class Graph:
         if self.index != other.index:
             return False
 
-        return (self._adj_csr != other._adj_csr).nnz == 0
+        return (self._adj_csr != other._adj_csr).nnz == 0  # type: ignore[reportAttributeAccessIssue]
 
     @property
     def adj(self) -> csr_array:
@@ -201,7 +201,7 @@ class Graph:
     @property
     def size(self) -> int:
         """Amount of nodes in the graph."""
-        return self.adj.shape[0]
+        return self.adj.shape[0]  # type: ignore[reportOptionalSubscript]
 
     def is_node_sink(self, node: NodeIndex) -> bool:
         """Return True if node has outdegree of 0."""
