@@ -384,7 +384,6 @@ class FunctionCodeData(Serializable):
         try:
             func_addr = get_addr(code_info)
             n_bytes = code_info["size"]
-            func_end = func_addr + n_bytes
 
             # Process blocks
             blocks = []
@@ -406,13 +405,16 @@ class FunctionCodeData(Serializable):
                 ref_perm |= block.ref_perm
 
                 block_addrs.append(block.addr)
-                for succ_addr in block.successors:
-                    if succ_addr >= func_addr and succ_addr < func_end:
-                        # NOTE: If this isn't the case it could be
-                        #       an indirect call to other function.
-                        block_edges.append((block.addr, succ_addr))
-
                 blocks.append(block)
+
+            valid_addrs = set(block_addrs)
+            for block in blocks:
+                for succ_addr in block.successors:
+                    if succ_addr in valid_addrs:
+                        # NOTE: If this isn't the case it could be
+                        #       an indirect call to other function
+                        #       or a block that failed to parse.
+                        block_edges.append((block.addr, succ_addr))
 
             cfg.setup(nodes=block_addrs, edges=block_edges)
 
@@ -425,7 +427,7 @@ class FunctionCodeData(Serializable):
                 n_instr=code_info["ninstr"],
                 n_args=code_info["nargs"],
                 n_locals=code_info["nlocals"],
-                n_bytes=code_info["size"],
+                n_bytes=n_bytes,
                 n_reads=n_reads,
                 n_writes=n_writes,
                 n_execs=n_execs,
@@ -603,9 +605,6 @@ class BinaryDataManager(Serializable):
     # Many-to-one lookup for functions name-address relationship.
     func_addr_lookup: dict[str, int] = field(default_factory=dict)
 
-    # All canonical names including functions and library imports.
-    name_symbols: set[str] = field(default_factory=set)
-
     # Call references by each function, including external imports.
     # Graph elements are normalised function names.
     func_call_graph: Graph = field(default_factory=Graph)
@@ -677,7 +676,6 @@ class BinaryDataManager(Serializable):
             #       This risk is likely negligible.
             normalised_name = get_canonical_symbol(func_name)
             self.func_addr_lookup[normalised_name] = func_addr
-            self.name_symbols.add(normalised_name)
 
     def get_func_addr(self, func_name: str) -> int:
         """Return address from function name.
@@ -794,6 +792,7 @@ class BinaryDataManager(Serializable):
 
         callers: list[str] = []
         outputs: list[tuple[str, tuple[str, ...]]] = []
+        name_symbols = set()
 
         for func in cg:
             func_name = get_canonical_symbol(func["name"])
@@ -803,11 +802,12 @@ class BinaryDataManager(Serializable):
 
             # Keep track of all nodes to identify terminal nodes
             # to keep at the end of the Graph adjacency
-            self.name_symbols.add(func_name)
-            self.name_symbols.update(func_imports)
+            name_symbols.add(func_name)
+            name_symbols.update(func_imports)
             outputs.append((func_name, func_imports))
 
-        terminal_callees = self.name_symbols.difference(callers)
+        terminal_callees = name_symbols.difference(callers)
+        del name_symbols
 
         def _iter_cg_nodes() -> Iterator[str]:
             yield from callers
