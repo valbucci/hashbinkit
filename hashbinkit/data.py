@@ -32,7 +32,6 @@ from .canonicalize import (
     get_reference_kind,
 )
 from .graph import Graph
-from .serialize import Serializable
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -86,7 +85,7 @@ def get_addr(data) -> int:
 
 
 @dataclass(frozen=True, slots=True)
-class OpcodeReferenceData(Serializable):
+class OpcodeReferenceData:
     src_addr: int
     dst_addr: int
     perm: int
@@ -180,7 +179,7 @@ class OpcodeReferenceData(Serializable):
 
 
 @dataclass(frozen=True, slots=True)
-class OpcodeData(Serializable):
+class OpcodeData:
     addr: int
     n_bytes: int
     raw_bytes: str
@@ -272,7 +271,7 @@ class OpcodeData(Serializable):
 
 
 @dataclass(frozen=True, slots=True)
-class BasicBlockData(Serializable):
+class BasicBlockData:
     addr: int
     jump: int | None
     fail: int | None
@@ -361,7 +360,7 @@ class BasicBlockData(Serializable):
 
 
 @dataclass(frozen=True, slots=True)
-class FunctionCodeData(Serializable):
+class FunctionCodeData:
     addr: int
     name: str
 
@@ -501,7 +500,7 @@ class FunctionCodeData(Serializable):
 
 
 @dataclass(frozen=True, slots=True)
-class FunctionZignatureData(Serializable):
+class FunctionZignatureData:
     addr: int
     name: str
     pic_hash: str
@@ -586,7 +585,7 @@ class FunctionZignatureData(Serializable):
 
 
 @dataclass(slots=True)
-class BinaryDataManager(Serializable):
+class BinaryDataManager:
     """Manage multiple function data types for one binary file."""
 
     # General binary information

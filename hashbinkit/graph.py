@@ -8,7 +8,6 @@ from typing import Self, TypeAlias
 import numpy as np
 
 from .canonicalize import get_adjacency_label
-from .serialize import Serializable
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -32,7 +31,7 @@ class EmptyGraphError(RuntimeError):
 
 
 @dataclass(slots=True, eq=False)
-class Graph(Serializable):
+class Graph:
     """Generic manager to handle graph operations."""
 
     index: tuple[NodeKey, ...] = field(default_factory=tuple)
