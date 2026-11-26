@@ -15,7 +15,7 @@ numpy==2.5.5
     #   hashbinkit (pyproject.toml)
     #   numba
     #   scipy
-r2bagpipe==0.1.5
+r2bagpipe==0.1.6
     # via hashbinkit (pyproject.toml)
 r2pipe==2.1.0
     # via r2bagpipe
