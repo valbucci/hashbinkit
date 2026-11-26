@@ -5,6 +5,7 @@ from collections.abc import Iterable, Iterator
 from typing import Self, TypeAlias
 
 import numpy as np
+from scipy.sparse import csr_array, csc_array
 
 from .canonicalize import get_adjacency_label
 
@@ -130,11 +131,14 @@ class Graph:
             raise EmptyGraphError("Cannot set edges on an empty graph.")
 
         N = len(self.index)
-        self._adj = np.zeros(shape=(N, N), dtype=np.int8)
-        for input, output in edges:
-            input_index = self.index_map[input]
-            output_index = self.index_map[output]
-            self.adj[input_index, output_index] = 1
+        rows, cols = [], []
+        for src, dst in edges:
+            rows.append(self.index_map[src])
+            cols.append(self.index_map[dst])
+        data = np.ones(len(rows), dtype=np.int8)
+        self._adj_csr = csr_array(
+            (data, (rows, cols)), shape=(N, N), dtype=np.int8
+        )
         return self
 
     def setup_outputs(self, node_outputs: Iterable[NodeOutputs]) -> Self:
@@ -152,8 +156,9 @@ class Graph:
 
     def setup_cache(self) -> Self:
         """Cache indegree / outdegree values."""
-        self._indegree = np.count_nonzero(self.adj, axis=0)
-        self._outdegree = np.count_nonzero(self.adj, axis=1)
+        self._adj_csc = self._adj_csr.tocsc()
+        self._indegree = np.asarray(self._adj_csr.sum(axis=0)).flatten()
+        self._outdegree = np.asarray(self._adj_csr.sum(axis=1)).flatten()
         return self
 
     @property
