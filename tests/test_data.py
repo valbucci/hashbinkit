@@ -39,7 +39,7 @@ class TestBinaryDataManager:
     def first_opcode_with_refs(
         cls, manager: BinaryDataManager
     ) -> OpcodeData | None:
-        """Return the first opcode that has at least one non-None ref or xref."""
+        """Return the first opcode with at least one ref or xref."""
         for cfg in manager.func_cfgs.values():
             for block in cfg.blocks:
                 for op in block.opcodes:
@@ -53,7 +53,7 @@ class TestBinaryDataManager:
         cls,
         manager: BinaryDataManager,
     ) -> BasicBlockData | None:
-        """Return the first block that has non-None jump or fail fields."""
+        """Return the first block with non-None jump or fail fields."""
         for cfg in manager.func_cfgs.values():
             for block in cfg.blocks:
                 if block.jump is not None or block.fail is not None:
