@@ -2,10 +2,11 @@
 
 import logging
 from collections.abc import Iterable, Iterator
-from typing import Self, TypeAlias
+from typing import Literal, Self, TypeAlias
 
 import numpy as np
 from scipy.sparse import csc_array, csr_array
+from scipy.sparse.csgraph import breadth_first_order, depth_first_order
 
 from .canonicalize import get_adjacency_label
 
@@ -130,6 +131,24 @@ class Graph:
         graph.setup_cache()
         return graph
 
+    def extract_subgraph(
+        self,
+        start: NodeIndex,
+        order: Literal["breadth", "depth"] = "breadth",
+        directed: bool = True,
+    ) -> "Graph":
+        """Extract subgraph reachable from start node via BFS or DFS."""
+        traverse = (
+            breadth_first_order if order == "breadth" else depth_first_order
+        )
+        reachable = traverse(
+            self.adj, start, directed=directed, return_predecessors=False
+        )
+        nodes = reachable[reachable >= 0]  # filter -1 sentinels
+        sub_index = tuple(self.index[i] for i in nodes)
+        sub_adj = self.adj[nodes, :][:, nodes]
+        return Graph.build(sub_adj, sub_index)
+
     def setup_nodes(self, nodes: Iterable[NodeKey]) -> Self:
         """Set the node index for internal use."""
         self.index = tuple(nodes)
@@ -174,9 +193,9 @@ class Graph:
 
     def setup_cache(self) -> Self:
         """Cache indegree / outdegree values."""
-        self._adj_csc = self._adj_csr.tocsc()
-        self._indegree = np.asarray(self._adj_csr.sum(axis=0)).flatten()
-        self._outdegree = np.asarray(self._adj_csr.sum(axis=1)).flatten()
+        self._adj_csc = self.adj.tocsc()
+        self._indegree = np.asarray(self.adj.sum(axis=0)).flatten()
+        self._outdegree = np.asarray(self.adj.sum(axis=1)).flatten()
         return self
 
     @property
