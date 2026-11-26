@@ -2,7 +2,6 @@
 
 import logging
 from collections.abc import Iterable, Iterator
-from dataclasses import dataclass, field
 from typing import Self, TypeAlias
 
 import numpy as np
@@ -30,17 +29,29 @@ class EmptyGraphError(RuntimeError):
     """Raised when edges are referenced in an empty graph."""
 
 
-@dataclass(slots=True, eq=False)
 class Graph:
     """Generic manager to handle graph operations."""
 
-    index: tuple[NodeKey, ...] = field(default_factory=tuple)
-    index_map: dict[NodeKey, NodeIndex] = field(default_factory=dict)
-    _adj: np.ndarray | None = None
-    _indegree: np.ndarray | None = None
-    _outdegree: np.ndarray | None = None
-    _inputs_cache: dict[NodeIndex, np.ndarray] = field(default_factory=dict)
-    _outputs_cache: dict[NodeIndex, np.ndarray] = field(default_factory=dict)
+    __slots__ = (
+        "index",
+        "index_map",
+        "_adj_csr",
+        "_adj_csc",
+        "_indegree",
+        "_outdegree",
+        "_inputs_cache",
+        "_outputs_cache",
+    )
+
+    def __init__(self) -> None:
+        self.index: tuple[NodeKey, ...] = ()
+        self.index_map: dict[NodeKey, NodeIndex] = {}
+        self._adj_csr = None
+        self._adj_csc = None
+        self._indegree: np.ndarray | None = None
+        self._outdegree: np.ndarray | None = None
+        self._inputs_cache: dict[NodeIndex, np.ndarray] = {}
+        self._outputs_cache: dict[NodeIndex, np.ndarray] = {}
 
     def setup(
         self,
