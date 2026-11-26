@@ -5,7 +5,7 @@ from collections.abc import Iterable, Iterator
 from typing import Self, TypeAlias
 
 import numpy as np
-from scipy.sparse import csr_array, csc_array
+from scipy.sparse import csc_array, csr_array
 
 from .canonicalize import get_adjacency_label
 
@@ -34,14 +34,14 @@ class Graph:
     """Generic manager to handle graph operations."""
 
     __slots__ = (
+        "_adj_csc",
+        "_adj_csr",
+        "_indegree",
+        "_inputs_cache",
+        "_outdegree",
+        "_outputs_cache",
         "index",
         "index_map",
-        "_adj_csr",
-        "_adj_csc",
-        "_indegree",
-        "_outdegree",
-        "_inputs_cache",
-        "_outputs_cache",
     )
 
     def __init__(self) -> None:
@@ -80,23 +80,23 @@ class Graph:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Graph):
             return NotImplemented
-        if self._adj is None or other._adj is None:
+        if self._adj_csr is None or other._adj_csr is None:
             raise EmptyGraphError(
                 "Comparing two graphs while at least one is empty."
             )
         if self.index != other.index:
             return False
 
-        return np.array_equal(self._adj, other._adj)
+        return (self._adj_csr != other._adj_csr).nnz == 0
 
     @property
-    def adj(self) -> np.ndarray:
-        """The adjacency matrix."""
-        if self._adj is None:
+    def adj(self) -> csr_array:
+        """The adjacency matrix in row-wise sparse format."""
+        if self._adj_csr is None:
             raise EmptyGraphError(
                 "The adjacency matrix is not set because the graph is empty."
             )
-        return self._adj
+        return self._adj_csr
 
     @property
     def indegree(self) -> np.ndarray:
@@ -111,6 +111,15 @@ class Graph:
         if self._outdegree is None:
             raise EmptyGraphError
         return self._outdegree
+
+    @property
+    def adj_csc(self) -> csc_array:
+        """The adjacency matrix in column-wise sparse format."""
+        if self._adj_csc is None:
+            raise EmptyGraphError(
+                "The adjacency matrix is not set because the graph is empty."
+            )
+        return self._adj_csc
 
     def setup_nodes(self, nodes: Iterable[NodeKey]) -> Self:
         """Set the node index for internal use."""
