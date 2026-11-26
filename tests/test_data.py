@@ -59,3 +59,9 @@ class TestBinaryDataManager:
                 if block.jump is not None or block.fail is not None:
                     return block
         return None
+
+    def test_manager(cls, manager: BinaryDataManager):
+        global_cg = manager.func_call_graph
+        assert len(global_cg.index) > 0
+        assert len(manager.func_zigs) > 0
+        assert len(manager.func_cfgs) > 0
