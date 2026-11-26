@@ -177,7 +177,7 @@ class Graph:
 
     def is_node_sink(self, node: NodeIndex) -> bool:
         """Return True if node has outdegree of 0."""
-        return self.adj[node].nnz == 0
+        return self.adj.getrow(node).nnz == 0
 
     def get_node_indegree(self, node: NodeIndex) -> int:
         """Return node's number of inputs."""
@@ -204,7 +204,7 @@ class Graph:
         except KeyError:
             pass
 
-        outputs = self.adj[node].indices
+        outputs = self.adj.getrow(node).indices
         self._outputs_cache[node] = outputs
         return outputs
 
