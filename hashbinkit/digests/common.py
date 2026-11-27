@@ -12,8 +12,8 @@ def hashable_to_bytes(hashable: Hashable) -> bytes:
         return hashable
     elif isinstance(hashable, str):
         return hashable.encode("utf-8")
-    elif isinstance(hashable, int):
-        return bytes(HexInt(hashable))
+    elif isinstance(hashable, (int, np.integer)):
+        return bytes(HexInt(int(hashable)))
     elif isinstance(hashable, bool):
         return int(hashable).to_bytes(1, "big")
     elif isinstance(hashable, float):

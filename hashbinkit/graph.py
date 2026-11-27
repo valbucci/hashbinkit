@@ -301,6 +301,9 @@ class Graph:
             nodes, dtype=self.adj.indices.dtype, count=len(nodes)
         )
         sub_adj = _subgraph_dense(nodes_arr, self.adj.indptr, self.adj.indices)
+
+        # NOTE: The subgraph label could be np.uint32
+        #       if it comes from the lookup table
         return get_adjacency_label(sub_adj)
 
     def get_k_subgraphs(
