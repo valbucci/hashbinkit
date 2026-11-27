@@ -8,7 +8,7 @@ import numpy as np
 from scipy.sparse import csc_array, csr_array
 from scipy.sparse.csgraph import breadth_first_order, depth_first_order
 
-from .canonicalize import get_adjacency_label
+from .precompute import get_adjacency_label
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())

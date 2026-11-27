@@ -18,13 +18,10 @@ from pathlib import Path
 import numpy as np
 from numba import njit, prange
 
-from .canonicalize import get_adjacency_label
+from .canonicalize import get_adjacency_label as brute_force_adjacency_label
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
-
-# 4 bits per permutation node
-_BITS_PER_NODE = np.uint32(4)
 
 
 def get_cache_dir() -> Path:
@@ -47,24 +44,19 @@ def _build_table(k: int):
     """Build labels and perms arrays over all input matrices."""
     n_entries = 1 << (k * k)
     labels = np.zeros(n_entries, dtype=np.uint32)
-    perms = np.zeros(n_entries, dtype=np.uint32)
+    perms = np.zeros((n_entries, k), dtype=np.uint8)
 
     for bitmask in prange(n_entries):
-        # Decode bitmask into k×k matrix (row-major, bit = row*k + col)
         matrix = np.zeros((k, k), dtype=np.int8)
         for pos in range(k * k):
             if (bitmask >> pos) & 1:
-                matrix[pos // k, pos % k] = np.int8(1)
+                matrix[pos // k, pos % k] = 1
 
-        label, perm = get_adjacency_label(matrix)
+        label, perm = brute_force_adjacency_label(matrix)
 
-        labels[bitmask] = np.uint32(label)
-
-        # Pack permutation: element i occupies bits [i*4 : i*4+4]
-        enc = np.uint32(0)
+        labels[bitmask] = label
         for i in range(k):
-            enc |= np.uint32(perm[i]) << (np.uint32(i) * _BITS_PER_NODE)
-        perms[bitmask] = enc
+            perms[bitmask, i] = perm[i]
 
     return labels, perms
 
@@ -103,8 +95,8 @@ def load_table(
     so the delay is visible in logs.
 
     Returns:
-        - labels: uint32 array of shape (2^(k²),)
-        - perms:  uint32 array of shape (2^(k²),), 4 bits per element
+        - labels: uint32 array of shape (2^(k * k),)
+        - perms:  uint8  array of shape (2^(k * k), k), already decoded
 
     """
     path = get_table_path(k, cache_dir)
@@ -120,12 +112,55 @@ def load_table(
     return data["labels"], data["perms"]
 
 
-def decode_perm(encoded: np.uint32, k: int) -> np.ndarray:
-    """Unpack a permutation from its uint32 encoding."""
-    perm = np.empty(k, dtype=np.intp)
-    for i in range(k):
-        perm[i] = int((encoded >> np.uint32(i * 4)) & np.uint32(0xF))
-    return perm
+@njit(cache=True)
+def _encode_matrix(matrix: np.ndarray) -> np.uint32:
+    """Encode a k * k binary matrix as a row-major bitmask integer."""
+    k = matrix.shape[0]
+    bitmask = np.uint32(0)
+    pos = np.uint32(0)
+    for row in range(k):
+        for col in range(k):
+            if matrix[row, col]:
+                bitmask |= 1 << pos
+            pos += 1
+    return bitmask
+
+
+# Lazily populated lookup tables: k -> (labels, perms)
+_TABLES: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+
+# NOTE: k=3 and k=4 brute-force are faster than the lookup overhead.
+#       Only k=5 (120 perms) benefits enough to justify the table path.
+_SUPPORTED_KS = frozenset((5,))
+
+
+def _get_table(k: int) -> tuple[np.ndarray, np.ndarray] | None:
+    """Return the cached lookup table for k.
+
+    Loads the lookup table on first access.
+    """
+    if k not in _SUPPORTED_KS:
+        return None
+    if k not in _TABLES:
+        _TABLES[k] = load_table(k)
+    return _TABLES[k]
+
+
+def get_adjacency_label(
+    matrix: np.ndarray,
+) -> tuple[int, np.ndarray]:
+    """Return canonical label and best permutation for a k * k matrix.
+
+    Uses a precomputed lookup table for supported values of k.
+    Falls back to brute-force for other values.
+    """
+    k = matrix.shape[0]
+    table = _get_table(k)
+    if table is not None:
+        labels, perms = table
+        bitmask = _encode_matrix(matrix)
+        return labels[bitmask], perms[bitmask]
+    return brute_force_adjacency_label(matrix)
 
 
 if __name__ == "__main__":
