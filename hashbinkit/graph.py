@@ -164,14 +164,17 @@ class Graph:
         Overwrites adjacency matrix with the provided edges.
         If the node index is not set it will throw a RuntimeError.
         """
-        if len(self.index) == 0:
+        N = len(self.index)
+        if N == 0:
             raise EmptyGraphError("Cannot set edges on an empty graph.")
 
-        N = len(self.index)
-        rows, cols = [], []
-        for src, dst in edges:
-            rows.append(self.index_map[src])
-            cols.append(self.index_map[dst])
+        try:
+            src_keys, dst_keys = zip(*edges)
+            rows = [self.index_map[src] for src in src_keys]
+            cols = [self.index_map[dst] for dst in dst_keys]
+        except ValueError:
+            rows, cols = [], []
+
         data = np.ones(len(rows), dtype=np.int8)
         self._adj_csr = csr_array(
             (data, (rows, cols)), shape=(N, N), dtype=np.int8
