@@ -98,17 +98,24 @@ def load_table(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Load precomputed labels and perms arrays for given k.
 
+    If the table does not exist it is computed and saved automatically
+    on first call (one-time computation cost). A warning is emitted
+    so the delay is visible in logs.
+
     Returns:
-        labels: uint32 array of shape (2^(k * k),)
-        perms:  uint32 array of shape (2^(k * k),)
+        - labels: uint32 array of shape (2^(k²),)
+        - perms:  uint32 array of shape (2^(k²),), 4 bits per element
 
     """
     path = get_table_path(k, cache_dir)
     if not path.exists():
-        raise FileNotFoundError(
-            f"Precomputed table for k={k} not found at {path}. "
-            f"Run: python -m hashbinkit.precompute"
+        logger.warning(
+            "Precomputed canonical label table for k=%d not found at %s. "
+            "Computing now (one-time computation cost) ...",
+            k,
+            path,
         )
+        precompute(k, cache_dir)
     data = np.load(path)
     return data["labels"], data["perms"]
 
