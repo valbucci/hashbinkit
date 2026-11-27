@@ -5,6 +5,7 @@ from collections.abc import Iterable, Iterator
 from typing import Literal, Self, TypeAlias
 
 import numpy as np
+from numba import njit
 from scipy.sparse import csc_array, csr_array
 from scipy.sparse.csgraph import breadth_first_order, depth_first_order
 
@@ -29,6 +30,24 @@ NodePath: TypeAlias = tuple[NodeIndex, ...]
 
 class EmptyGraphError(RuntimeError):
     """Raised when edges are referenced in an empty graph."""
+
+
+@njit(cache=True)
+def _subgraph_dense(
+    nodes: np.ndarray, indptr: np.ndarray, indices: np.ndarray
+) -> np.ndarray:
+    """Extract a dense submatrix for a node subset from CSR data."""
+    k = nodes.shape[0]
+    matrix = np.zeros((k, k), dtype=np.int8)
+    for i in range(k):
+        row = nodes[i]
+        for ptr in range(indptr[row], indptr[row + 1]):
+            col = indices[ptr]
+            for j in range(k):
+                if nodes[j] == col:
+                    matrix[i, j] = 1
+                    break
+    return matrix
 
 
 class Graph:
@@ -277,8 +296,11 @@ class Graph:
     def get_subgraph_label(
         self, nodes: tuple[NodeIndex, ...]
     ) -> tuple[int, np.ndarray]:
-        """Return subgraph from adjacency and its canonical label."""
-        sub_adj = self.adj[nodes, :][:, nodes].toarray()
+        """Return subgraph label and canonical node permutation."""
+        nodes_arr = np.fromiter(
+            nodes, dtype=self.adj.indices.dtype, count=len(nodes)
+        )
+        sub_adj = _subgraph_dense(nodes_arr, self.adj.indptr, self.adj.indices)
         return get_adjacency_label(sub_adj)
 
     def get_k_subgraphs(
@@ -291,9 +313,9 @@ class Graph:
         """DFS traversal for all k-subgraphs from the entry point.
 
         For each subgraph yields:
-            - NodePath: a tuple of neighbouring nodes
-            - np.ndarray: their adjacency matrix
-            - int: the canonical label of the adjacency matrix
+            - NodePath: a tuple of traversed nodes
+            - np.ndarray: their canonical permutation
+            - int: the label of their canonical adjacency matrix
         """
         seen_paths = _seen_paths
         if seen_paths is None:
@@ -304,8 +326,8 @@ class Graph:
             if path_nodes in seen_paths:
                 continue
             seen_paths.add(path_nodes)
-            label, sub_adj = self.get_subgraph_label(path_nodes)
-            yield tuple(path), sub_adj, label
+            label, perm = self.get_subgraph_label(path_nodes)
+            yield tuple(path), perm, label
 
             if not self.is_node_sink(path[-1]):
                 yield from self.get_k_subgraphs(
